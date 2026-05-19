@@ -6,7 +6,7 @@
 
 ### Source and Origin
 
-The dataset used in this project is the [**Telco Customer Churn dataset**](https://www.kaggle.com/datasets/blastchar/telco-customer-churn), originally published as part of IBM's sample data collections and widely distributed through Kaggle from where I've taken the .csv file.
+The dataset used in this project is the [**Telco Customer Churn dataset**](https://www.kaggle.com/datasets/jethwaaatmik/telco-customer-churn-dataset), originally published as part of IBM's sample data collections and widely distributed through Kaggle from where I've taken the .csv file.
 
 Its stated purpose is to support the development of customer retention strategies by enabling analysis and prediction of churn behavior in a fictional telecommunications company.
 
