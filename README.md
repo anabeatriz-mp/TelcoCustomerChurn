@@ -111,7 +111,7 @@ Every decision about variable type should therefore reflect an understanding of 
 ## 3. Missing Data Analysis
 
 > [!note]
-> The Jupyter Notebook that supports the analysis below can be found in [notebooks\missing_data_analysis.ipynb]().
+> The Jupyter Notebook that supports the analysis below can be found in [notebooks\missing_data_analysis.ipynb](https://github.com/anabeatriz-mp/TelcoCustomerChurn/blob/master/notebooks/missing_data_analysis.ipynb).
 
 ### Missing Values per Variable
 
