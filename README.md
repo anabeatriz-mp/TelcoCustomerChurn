@@ -1,5 +1,4 @@
 # Telco Customer Churn
----
 
 ## 1. Dataset Description
 
@@ -40,8 +39,6 @@ In terms of what claims the data can support, it is well-suited for:
 This dataset has a few known limitations such as:
 1. The dataset originates from a **synthetic IBM sample**, not a real telecom operator which means findings cannot be generalized to actual industry populations
 2. **The class imbalance** (~74% non-churn vs. ~26% churn) may bias model performance toward the majority class if not addressed
-
----
 
 
 ## 2. Variable Dictionary and Measurement Types
@@ -110,5 +107,118 @@ Relying solely on metadata to assign variable types risks losing contextual info
 The research objective also shapes these choices. `tenure`, for instance, could be treated as continuous in a regression, or discretized into lifecycle cohorts if the goal is customer segmentation. Neither is inherently correct — the right encoding depends on what structure is analytically relevant.
 
 Every decision about variable type should therefore reflect an understanding of **the context and structure** that analysis requires, not simply what the raw data **provides**.
+
+## 3. Missing Data Analysis
+
+> [!note]
+> The Jupyter Notebook that supports the analysis below can be found in [notebooks\missing_data_analysis.ipynb]().
+
+### Missing Values per Variable
+
+A custom `check_missing_values()` function was used to quantify missingness across all columns. The analysis identified a subset of variables carrying missing values, reported both as raw counts and percentages relative to the full dataset. 
+
+The table with the results is the following:
+
+| Variable         | Count of Missing | Percentage |
+| -----------      | :--------------: | :--------: | 
+| gender           | 750              | 10.65%     |
+| Partner          | 1000             | 14.20%     |
+| tenure           | 2500             | 35.50%     |
+| InternetService  | 1000             | 14.20%     |
+| StreamingTV      | 1500             | 21.30%     |
+| MonthlyCharges   | 1500             | 21.30%     |
+| TotalCharges     | 11               | 0.16%      |
+
+### Missingness Patterns
+
+#### Visual inspection 
+
+A heatmap of `df.isnull()` was plotted to inspect the spatial distribution of missing values. The initial impression was that missingness looked **visually random** — no obvious vertical bands or row clusters. However, this is largely because the dataset's missing data is **synthetically injected**, making it appear randomised by design.
+
+![missing_values_heatmap](https://github.com/anabeatriz-mp/TelcoCustomerChurn/blob/master/reports/plots/missing_values_heatmap.png)
+
+#### NaN Pair Correlation
+
+A pairwise correlation matrix of missingness indicators was plotted, as shown below:
+
+![pairwise nan correlation matrix](https://github.com/anabeatriz-mp/TelcoCustomerChurn/blob/master/reports/plots/nan_pair_correlation_heatmap.png)
+
+It revealed two pairs with **perfect 1.0 correlation**:
+
+- `InternetService` ↔ `Partner`
+- `StreamingTV` ↔ `MonthlyCharges`
+
+A correlation of 1.0 means these variables are **missing in the exact same rows** — no exceptions. This strongly supports the hypothesis that missing data was injected in **blocks** (i.e., multiple columns deleted from the same rows simultaneously), rather than independently per column.
+ 
+Most other inter-column missingness correlations are also notably high, suggesting widespread row-level co-occurrence of missing values.
+
+#### Structural missingness of `TotalCharges`
+
+`TotalCharges` was flagged as a special case, as the pairwise missing correlation heatmap showed no relation to any of the other features. 
+
+The `check_structural_missingness()` function revealed that **all missing values in `TotalCharges` correspond to a single unique value in `tenure`** — strongly suggesting that customers with `tenure = 0` (i.e., brand new customers) simply have no charges to report yet. This is a textbook case of **structural missingness** where the value isn't missing at random, it's absent *by design*.
+
+### Possible Interpretations and Mechanisms
+
+The table below shows, for each column in the dataset, the suspected missing mechanism and the interpretation behind it.
+
+|     Variable    | Suspected Mechanism |                                  Interpretation                                  |
+|:---------------:|:-------------------:|:--------------------------------------------------------------------------------:|
+| gender          |   MCAR (synthetic)  | High inter-column missingness correlation points to row-level block injection    |
+| Partner         |   MCAR (synthetic)  | High inter-column missingness correlation points to row-level block injection    |
+| tenure          |   MCAR (synthetic)  | High inter-column missingness correlation points to row-level block injection    |
+| InternetService |   MCAR (synthetic)  | High inter-column missingness correlation points to row-level block injection    |
+| StreamingTV     |      Structural     | New customers (tenure = 0) have no accumulated charges; NaN semantically means 0 |
+| MonthlyCharges  |   MCAR (synthetic)  | High inter-column missingness correlation points to row-level block injection    |
+| TotalCharges    |   MCAR (synthetic)  | High inter-column missingness correlation points to row-level block injection    |
+
+
+**On mechanisms:**
+
+- **MCAR** (Missing Completely At Random) is the most defensible hypothesis for the majority of variables, given the synthetic origin of the dataset. The missingness does not appear to relate to the actual values of those variables or any other observed variable - it was externally injected.
+- **MNAR** (Missing Not At Random) applies specifically to `TotalCharges`, where the missingness *is* determined by an observed variable (`tenure`), but the relationship is structural rather than probabilistic.
+- **MAR** (Missing At Random) could technically apply if the block-injection was conditioned on some other variable, but there's no evidence of that here.
+
+### Variables Where Missingness Has Semantic Meaning
+
+**`TotalCharges`** is the only variable where missingness carries a clear semantic interpretation: `NaN` = customer has not yet been charged (tenure = 0).
+ 
+The co-missing pairs (`InternetService`/`Partner`, `StreamingTV`/`MonthlyCharges`) do **not** have an obvious domain-level reason to be jointly absent, reinforcing that their co-missingness is an artefact of synthetic data construction rather than a real-world phenomenon.
+
+### Possible Imputation Strategies
+
+#### `TotalCharges` → **Domain-based imputation**
+ 
+Since missingness is structural and the underlying formula to obtain `TotalCharges` is known:
+ 
+$$\text{TotalCharges} = \text{tenure} \times \text{MonthlyCharges}$$
+ 
+Missing values will be imputed using this formula so that no information is lost.
+
+#### All other columns with missing values → **Evaluate before imputing**
+
+Given that ~35.6% of rows carry at least one missing value, **row removal is ruled out** — the data loss would be too severe.
+
+To decide if imputation is a good choice, a per-column analysis of value distributions was carried out:
+- **Categorical columns**: checked via `value_counts(normalize=True)` to ensure imputation doesn't distort class balance.
+- **Numerical columns**: inspected via `.describe()` to assess whether mean/median imputation would introduce significant distributional distortion.
+
+
+**Imputation strategy** (justified by MCAR assumption):
+- **Categorical variables**: mode imputation or a dedicated `"Unknown"` category, depending on whether the missingness proportion is large enough to warrant its own label, or if it makes sense given the variables descriptions.
+- **Numerical variables**: median imputation (more robust to skew than mean).
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
