@@ -2,13 +2,11 @@
 
 ## 1. Dataset Description
 
-
 ### Source and Origin
 
 The dataset used in this project is the [**Telco Customer Churn dataset**](https://www.kaggle.com/datasets/jethwaaatmik/telco-customer-churn-dataset), originally published as part of IBM's sample data collections and widely distributed through Kaggle from where I've taken the .csv file.
 
 Its stated purpose is to support the development of customer retention strategies by enabling analysis and prediction of churn behavior in a fictional telecommunications company.
-
 
 ### Units of Analysis
 
@@ -25,7 +23,6 @@ The target variable, `Churn`, is a `binary` flag (Yes/No) capturing whether a cu
 
 The observed churn rate is approximately 26%, indicating a moderately imbalanced classification problem. This variable supports supervised learning tasks as well as descriptive analysis of churn drivers.
 
-
 ### Claims the Dataset Supports
 
 In terms of what claims the data can support, it is well-suited for:
@@ -33,17 +30,13 @@ In terms of what claims the data can support, it is well-suited for:
 - **Correlational Demographics** - you can claim statistical associations between specific attributes and attrition, for example, seeing if customers who are in specific types of contracts are more likely to churn.
 - **Service Vulnerabilities** - you can verify if there's higher rates of churn among some services who do not subscribe to add-ons.
 
-
 ### Limitations
 
 This dataset has a few known limitations such as:
 1. The dataset originates from a **synthetic IBM sample**, not a real telecom operator which means findings cannot be generalized to actual industry populations
 2. **The class imbalance** (~74% non-churn vs. ~26% churn) may bias model performance toward the majority class if not addressed
 
-
 ## 2. Variable Dictionary and Measurement Types
-
-
 
 ### Variable Table
 
@@ -207,6 +200,92 @@ To decide if imputation is a good choice, a per-column analysis of value distrib
 **Imputation strategy** (justified by MCAR assumption):
 - **Categorical variables**: mode imputation or a dedicated `"Unknown"` category, depending on whether the missingness proportion is large enough to warrant its own label, or if it makes sense given the variables descriptions.
 - **Numerical variables**: median imputation (more robust to skew than mean).
+
+## 4. Univariate Analysis
+
+The dataset contains **3 numerical** and **17 categorical** variables. Analysis was conducted separately for each type.
+
+### Numerical  Variables
+
+Descriptive statistics were computed including mean, median, Standard Deviation, Coefficient of Variation (CV), quartiles, Interquartile Range (IQR), Skewness, and Kurtosis.
+
+#### Summary Table
+
+| Feature        |   Count |      Mean |   Median |   Std Dev |       CV |   Min |     Q1 |       Q3 |      IQR |    Max |   Skewness |   Kurtosis |
+|:---------------|--------:|----------:|---------:|----------:|---------:|------:|-------:|---------:|---------:|-------:|-----------:|-----------:|
+| `tenure`         |    4543 |   32.5466 |    29    |   24.5055 | 0.752937 |  0    |   9    |   56     |   47     |   72   |   0.231347 |  -1.38799  |
+| `MonthlyCharges` |    5543 |   64.8764 |    70.55 |   30.1013 | 0.46398  | 18.25 |  35.75 |   89.925 |   54.175 |  118.6 |  -0.227777 |  -1.26222  |
+| `TotalCharges`   |    7032 | 2283.3    |  1397.47 | 2266.77   | 0.992761 | 18.8  | 401.45 | 3794.74  | 3393.29  | 8684.8 |   0.961642 |  -0.231799 |
+
+> Note: differing Count values reflect the missing data addressed in section 3.
+
+#### Distribution Plots
+
+Histograms with KDE overlays and boxplots were generated for all three variables, as shown below:
+
+![plot of numerical variables distributions](https://github.com/anabeatriz-mp/TelcoCustomerChurn/blob/master/reports/plots/plot_numerical_distributions_univariate.png)
+
+**Key Observations**
+- **tenure**: Values spread across its full range (0–72 months), with a near-uniform shape. The negative kurtosis (−1.39) confirms flat, platykurtic tails, no extreme outliers.
+- **MonthlyCharges**: Roughly bimodal. Light negative skew; also platykurtic.
+- **TotalCharges**: Right-skewed (0.96), which is expected — it's the product of tenure and monthly charges, so long-tenured customers accumulate disproportionately large totals. Wide IQR (3,393) signals high spread.
+
+#### Quality Table
+
+A quality table was computed using thresholds on CV, skewness, and kurtosis:
+
+| Variable         | Challenges                                         |
+| -----------      | :-------------------------------------------------:| 
+| `tenure`           | High Variability (CV = 0.75)                     |
+| `MonthlyCharges`   | Statistically well-behaved                       |
+| `TotalCharges`     | High Variability (CV = 0.99), Moderately Skewed  |
+
+**Conclusions:**
+
+- **tenure**: High CV reflects a wide range of customer lifetimes, from brand new (0) to loyal (72 months). Might benefit from binning into lifecycle stages (e.g., new / mid / loyal) for certain models.
+- **TotalCharges**: The combination of high variability and moderate right skew makes this a statistically challenging numeric variable. A log transformation would compress the long tail and bring the distribution closer to symmetry.
+- **MonthlyCharges**: The most well-behaved of the three, though the bimodal shape may warrant investigation in later bivariate analysis (it likely tracks with contract type or internet service tier).
+
+### Categorical Variables
+
+
+#### Summary Table
+
+| Feature          |   Cardinality | Cardinality Level   | Biggest Category   | % of Biggest Category   |   Num Rare Levels | Missing %   |
+|:-----------------|--------------:|:--------------------|:-------------------|:------------------------|------------------:|:------------|
+| gender           |             2 | Low                 | Male               | 50.88 %                 |                 0 | 10.65 %     |
+| SeniorCitizen    |             2 | Low                 | No                 | 83.79 %                 |                 0 | 0.00 %      |
+| Partner          |             2 | Low                 | No                 | 51.55 %                 |                 0 | 14.20 %     |
+| Dependents       |             2 | Low                 | No                 | 70.04 %                 |                 0 | 0.00 %      |
+| PhoneService     |             2 | Low                 | Yes                | 90.32 %                 |                 0 | 0.00 %      |
+| MultipleLines    |             3 | Low                 | No                 | 48.13 %                 |                 0 | 0.00 %      |
+| InternetService  |             3 | Low                 | Fiber optic        | 44.02 %                 |                 0 | 14.20 %     |
+| OnlineSecurity   |             3 | Low                 | No                 | 49.67 %                 |                 0 | 0.00 %      |
+| OnlineBackup     |             3 | Low                 | No                 | 43.84 %                 |                 0 | 0.00 %      |
+| DeviceProtection |             3 | Low                 | No                 | 43.94 %                 |                 0 | 0.00 %      |
+| TechSupport      |             3 | Low                 | No                 | 49.31 %                 |                 0 | 0.00 %      |
+| StreamingTV      |             3 | Low                 | No                 | 39.67 %                 |                 0 | 21.30 %     |
+| StreamingMovies  |             3 | Low                 | No                 | 39.54 %                 |                 0 | 0.00 %      |
+| Contract         |             3 | Low                 | Month-to-month     | 55.02 %                 |                 0 | 0.00 %      |
+| PaperlessBilling |             2 | Low                 | Yes                | 59.22 %                 |                 0 | 0.00 %      |
+| PaymentMethod    |             4 | Low                 | Electronic check   | 33.58 %                 |                 0 | 0.00 %      |
+| Churn            |             2 | Low                 | No                 | 73.46 %                 |                 0 | 0.00 %      |
+
+
+#### Cardinality
+
+All variables fall into the Low cardinality category (< 10 unique values). No high-cardinality variables are present, so no cardinality reduction or hashing strategies are needed.
+
+#### Frequency Distributions and Class Balance
+
+Most binary variables are reasonably balanced, with a few exceptions:
+- **SeniorCitizen**: Strongly skewed — 83.8% of customers are non-seniors.
+- **PhoneService**: 90.3% of customers have phone service (nearly a constant).
+- **Churn**: 73.5% of customers did not churn. Class imbalance is moderate and should be addressed during modelling.
+
+#### Rare Levels
+
+No rare levels were found across any categorical variable. Every category in every column meets the ≥ 5% frequency threshold, so no collapsing or grouping of levels is necessary.
 
 
 
