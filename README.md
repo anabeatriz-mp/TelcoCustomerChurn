@@ -287,8 +287,96 @@ Most binary variables are reasonably balanced, with a few exceptions:
 
 No rare levels were found across any categorical variable. Every category in every column meets the ≥ 5% frequency threshold, so no collapsing or grouping of levels is necessary.
 
+## 5. Association and Dependence
 
+### Numeric → Numeric: Pearson Correlation
 
+A Pearson correlation matrix was computed across the three numeric variables: `tenure`, `MonthlyCharges`, and `TotalCharges`.
+
+The most notable result is the really high (r=0.83) positive correlation between `TotalCharges` and the product of `tenure × MonthlyCharges` - `TotalCharges` is a function of how long a customer has been subscribed and how much they pay per month. This introduces **perfect multicollinearity** if all three variables are used simultaneously in a model.
+
+> **Modelling implication:** `TotalCharges` should not be used alongside both `tenure` and `MonthlyCharges`. In practice, either approach can be tested:
+> - Use `tenure` + `MonthlyCharges` (the two independent components).
+> - Use `TotalCharges` alone as a compact proxy.
+
+The correlation between `tenure` and `MonthlyCharges` themselves is much weaker, indicating that how long a customer stays and how much they pay monthly are independent dimensions.
+
+### Categorical → Numeric: Correlation Ratio (η)
+
+To measure the association between categorical variables and each numeric variable, the **Correlation Ratio (η)** was computed. This measure captures how much of the variance in a numeric variable is explained by the groupings defined by a categorical variable, and it handles non-linear relationships.
+
+$$\eta = \sqrt{\frac{\text{SS}_{between}}{\text{SS}_{total}}}$$
+
+Results are interpreted as follows:
+ 
+| η range | Interpretation |
+|---------|----------------|
+| < 0.1   | Negligible     |
+| 0.1–0.3 | Weak           |
+| 0.3–0.5 | Moderate       |
+| ≥ 0.5   | Strong         |
+
+**Key findings:**
+ 
+- **`MonthlyCharges`** shows strong association with variables related to additional services (e.g., `OnlineSecurity`, `TechSupport`, `StreamingTV`, `StreamingMovies`). This is structurally expected: subscribing to more services directly increases the monthly bill.
+- **`tenure`** shows a reasonably high correlation with `Contract`. Customers on two-year contracts are contractually bound to the service and therefore remain for longer periods. This relationship has an intuitive business explanation.
+
+These associations are informative but must be interpreted cautiously in a modelling context. Variables that are structurally caused by others (like `MonthlyCharges` being driven by service subscriptions) may introduce redundant information if all are included as features.
+
+### Categorical → Categorical: Chi-Square and Cramér's V
+
+For pairs of categorical variables, a two-step approach was adopted:
+ 
+1. **Chi-Square Test** — to determine whether a statistically significant relationship exists (i.e., whether the association is unlikely to be due to chance).
+2. **Cramér's V** — to quantify the *strength* of that association, independently of sample size.
+
+The Chi-Square test is known to be highly sensitive to large samples: even trivial associations can reach statistical significance. Cramér's V corrects for this, providing a normalised effect size in [0, 1]. Only pairs with p-value < 0.05 **and** Cramér's V > 0.3 were considered meaningfully associated.
+
+**Key findings:**
+ 
+The strongest associations emerged among service-related features. Variables such as `OnlineSecurity`, `TechSupport`, `OnlineBackup`, `DeviceProtection`, `StreamingTV`, and `StreamingMovies` are highly intercorrelated with one another. Users who subscribe to one add-on service tend to subscribe to others.
+ 
+> **Multicollinearity risk:** Including multiple service-related dummies in a model simultaneously may lead to redundant information and unstable coefficient estimates. Dimensionality reduction or feature selection should be considered for this group.
+
+### Correlation with the Target Variable (Churn)
+
+#### Numeric Variables vs. Churn
+
+Boxplots of `tenure`, `MonthlyCharges`, and `TotalCharges` against `Churn` reveal:
+ 
+- Customers who churn tend to have **shorter tenure** — they leave earlier in their relationship with the company.
+- Churning customers tend to have **higher monthly charges** — price sensitivity may be a driver of attrition.
+- `TotalCharges` follows from the above: churned customers have lower totals due to shorter tenure, despite higher monthly rates.
+
+#### Categorical Variables vs. Churn
+
+Chi-Square tests and Cramér's V were computed between each categorical predictor and the target variable `Churn`. The variables with the highest association are:
+
+| Variable          | Relationship Strength |
+|-------------------|-----------------------|
+| `Contract`        | Strong                |
+| `OnlineSecurity`  | Moderate              |
+| `TechSupport`     | Moderate              |
+| `InternetService` | Moderate              |
+| `PaymentMethod`   | Moderate              |
+
+- **`Contract`** is the strongest categorical predictor of churn. Customers on month-to-month contracts churn at substantially higher rates than those on one- or two-year contracts — likely because they face no financial barrier to leaving.
+- **`OnlineSecurity`** and **`TechSupport`** are also associated with churn: customers without these services churn more, possibly reflecting lower overall engagement or satisfaction with the product.
+- **`InternetService`** type (Fiber Optic vs. DSL vs. No Internet) shows meaningful differences in churn rates.
+- **`PaymentMethod`** — customers paying by electronic check appear more likely to churn than those using automatic payment methods.
+
+### Multicollinearity and Modelling Considerations
+ 
+Several dependencies identified in this chapter have direct consequences for feature engineering and model selection:
+ 
+1. **`TotalCharges` = `tenure × MonthlyCharges`**: These three variables should not all be included simultaneously in a linear model. The safest approach is to test both configurations and compare.
+2. **`Contract` and `tenure`**: Both capture the customer's length of relationship with the company. They are correlated and partially redundant.
+3. **Service add-on cluster** (`OnlineSecurity`, `TechSupport`, `OnlineBackup`, `DeviceProtection`, `StreamingTV`, `StreamingMovies`): These features are intercorrelated and simultaneously associated with churn. While each carries some individual signal, using all of them together risks overfitting and instability. Grouping them (e.g., a count of subscribed services) or applying selection procedures might be a good idea.
+
+### Interpretation Limits
+ 
+- **Correlation is not causation.** High churn rates among month-to-month customers do not necessarily mean that offering longer contracts reduces churn — customers who were already likely to leave may self-select into flexible plans.
+- **Class imbalance** in the target variable (churn is a relatively rare event) can affect how some associations appear in raw counts and should be kept in mind when interpreting visualisations such as count plots.
 
 
 
