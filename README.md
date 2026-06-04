@@ -378,8 +378,73 @@ Several dependencies identified in this chapter have direct consequences for fea
 - **Correlation is not causation.** High churn rates among month-to-month customers do not necessarily mean that offering longer contracts reduces churn — customers who were already likely to leave may self-select into flexible plans.
 - **Class imbalance** in the target variable (churn is a relatively rare event) can affect how some associations appear in raw counts and should be kept in mind when interpreting visualisations such as count plots.
 
+## 6. Regression Modelling Strategy
+
+### Modelling Objective 
+
+The target variable in this dataset is `Churn`, a binary indicator of whether a customer has left the company. The goal of the model is to predict, for each customer, the probability of churning, and to classify them accordingly - this falls into a **logistic regression** task.
+
+From a business perspective, the objective is to identify customers who are at risk of churning before they leave, so that retention interventions (e.g. targeted offers, proactive support) can be applied in time.
+
+This framing has a direct consequence on how the model should be evaluated: the cost of missing a churner (false negative) is generally higher than the cost of incorrectly flagging a loyal customer (false positive), since acting on a false alarm is merely wasteful, while failing to act on a true churner means losing the customer entirely.
+
+### Train / Validation / Test Split Strategy
+
+The dataset will be divided into three non-overlapping subsets:
+
+| Split      | Proportion |
+|------------|------------|
+| Train      | 70%        |
+| Validation | 15%        |
+| Test       | 15%        |
+
+**Stratification** on the target variable - `Churn` is applied at every split. Churn is an imbalanced class (churners are a minority), so random splitting without stratification risks producing a validation or test set with a different churn rate than the training set, which would make evaluation unreliable.
+
+### Evaluation Metrics
+
+Because this is a classification problem, standard regression metrics (MAE, RMSE, R²) are not applicable since they assume a continuous numeric output, whereas the model produces a probability and a binary label. 
+
+The following metrics are used instead:
+
+#### Precision, Recall, and F1-Score
+
+**Recall (Sensitivity)**
+
+Measures the fraction of actual churners correctly identified: 
+
+$$\text{Recall} = \frac{TP}{TP + FN}$$
+
+Primary concern - missing a churner is the error that costs the most.
+
+**Precision**
+
+Measures how many of the customers flagged as churners actually churn: 
+$$\text{Precision} = \frac{TP}{TP + FP}$$ 
+
+This measures the actual usefulness - a model that flags everyone as a churner has perfect recall but is useless in practice.
 
 
+**F1-Score**
+
+It's the harmonic mean of precision and recall: 
+
+$$F_1 = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}$$
+
+It provides a single balanced summary when both matter.
+
+#### ROC-AUC
+ 
+The **Area Under the ROC Curve (AUC)** measures the model's ability to discriminate between churners and non-churners across all possible classification thresholds. 
+
+It is threshold-independent and robust to class imbalance, making it well-suited for this dataset. An AUC of 0.5 corresponds to a random classifier; a value approaching 1.0 indicates strong discriminative ability.
+
+#### Why Not Accuracy?
+ 
+Accuracy (the fraction of correct predictions overall) is misleading on imbalanced datasets. 
+
+If approximately 27% of customers churn (as observed in this dataset), a model that predicts "No Churn" for every customer would achieve ~73% accuracy while being entirely useless. 
+
+For this reason, accuracy is not used as a primary metric here.
 
 
 
